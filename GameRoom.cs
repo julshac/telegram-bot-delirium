@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Telegram.Bot;
 using Telegram.Bot.Types;
+using Telegram.Bot.Types.InlineKeyboardButtons;
 using Telegram.Bot.Types.ReplyMarkups;
 
 namespace pj2
@@ -55,7 +56,8 @@ namespace pj2
                 "За Родину!",
                 "Never gonna give you up",
                 "42",
-                "Матрос - это такая вошь"
+                "Матрос - это такая вошь",
+                "Алкоголь на тебя не действует!"
             };
 
         private const string str_newgame = "Новая игра";
@@ -114,7 +116,24 @@ namespace pj2
             inGame[1][0] = new KeyboardButton(str_wat);
 
             gameMarkup = new ReplyKeyboardMarkup(inGame, true);
+
+            InlineKeyboardButton[][] ikb = new InlineKeyboardButton[8][];
+
+            for (int i = 0; i < 6; i++)
+            {
+                ikb[i] = new InlineKeyboardButton[3] {
+                    "<name>:" + i,
+                    "-",
+                    "+"
+                };
+            }
+            ikb[6] = new InlineKeyboardButton[2] { ":arrow_left:", "arrow_right" };
+            ikb[7] = new InlineKeyboardButton[2] { "Отмена", "Сохранить" };
+
+            test = new InlineKeyboardMarkup(ikb);
         }
+
+        private InlineKeyboardMarkup test;
 
         private void NewGame()
         {
@@ -122,7 +141,7 @@ namespace pj2
             cupCount = 0;
             BuildShuffleStack();
             gameMarkup.Keyboard[0][0].Text = getRandomButtonTitle();
-            SendMsg("Новая колода готова!", gameMarkup);
+            SendMsg("Новая колода готова!", test);
         }
 
         private void BuildShuffleStack()
@@ -205,7 +224,7 @@ namespace pj2
             }
         }
 
-        private void SendMsg(string msg, ReplyKeyboardMarkup markup)
+        private void SendMsg(string msg, IReplyMarkup markup)
         {
             Client.SendTextMessageAsync(ChatID, msg, replyMarkup: markup);
         }
