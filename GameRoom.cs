@@ -122,7 +122,7 @@ namespace pj2
             for (int i = 0; i < 6; i++)
             {
                 ikb[i] = new InlineKeyboardButton[3] {
-                    "<name>:" + i,
+                    "<looooongname>:" + i,
                     "-",
                     "+"
                 };
