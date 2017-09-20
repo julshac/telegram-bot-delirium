@@ -127,7 +127,7 @@ namespace pj2
                     "+"
                 };
             }
-            ikb[6] = new InlineKeyboardButton[2] { ":arrow_left:", "arrow_right" };
+            ikb[6] = new InlineKeyboardButton[2] { "\u2B05", "arrow_right" };
             ikb[7] = new InlineKeyboardButton[2] { "Отмена", "Сохранить" };
 
             test = new InlineKeyboardMarkup(ikb);
