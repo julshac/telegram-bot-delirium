@@ -13,11 +13,9 @@ namespace pj2
     {
         public Startup(IHostingEnvironment env)
         {
-            System.Console.WriteLine($"Current environment: {env.EnvironmentName}");
-
             var builder = new ConfigurationBuilder();
             
-            if (env.IsDevelopment())
+            if (env.EnvironmentName == "Local")
             {
                 builder
                     .SetBasePath(Environment.CurrentDirectory)
