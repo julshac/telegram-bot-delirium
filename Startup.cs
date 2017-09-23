@@ -14,14 +14,14 @@ namespace pj2
         public Startup(IHostingEnvironment env)
         {
             var builder = new ConfigurationBuilder();
-            
+            /*
             if (env.EnvironmentName == "Local")
             {
                 builder
                     .SetBasePath(Environment.CurrentDirectory)
                     .AddJsonFile("local\\secrets.json");
             }
-
+            */
             builder.AddEnvironmentVariables("APPSETTINGS_");
 
             Configuration = builder.Build();
