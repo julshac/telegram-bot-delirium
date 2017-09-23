@@ -11,11 +11,10 @@ namespace pj2.Controllers
 {
     public class apiController : Controller
     {
-        List<Message> list = new List<Message>();
+        List<Update> list = new List<Update>(); //kinda DB //thread safeness?
 
-        static string sList = "Messages:\n";
+        static string sList = "Updates:\n";
 
-        //[Produces("application/text")]
         [HttpGet]
         public IActionResult Index()
         {
@@ -26,10 +25,11 @@ namespace pj2.Controllers
         [HttpPost("[controller]/p")] //поменять
         public IActionResult Post([FromBody] Telegram.Bot.Types.Update u)
         {
-            list.Add(u.Message);
-            sList += u.Message.Chat.FirstName + ": " + u.Message.Text + "\n";
+            list.Add(u);
+            sList += $"{DateTime.UtcNow.AddHours(3).ToString()}: Chat ID: {u.Message.Chat.Id}, user name: {u.Message.Chat.FirstName},"
+                + $"update type: {u.Type}, text: {u.Message.Text}";
 
-            Program.HandleMessage(u.Message);
+            Program.HandleUpdate(u);
 
             return Ok();
         }

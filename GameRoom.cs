@@ -141,7 +141,7 @@ namespace pj2
             cupCount = 0;
             BuildShuffleStack();
             gameMarkup.Keyboard[0][0].Text = getRandomButtonTitle();
-            SendMsg("Новая колода готова!", test);
+            SendMsg("Новая колода готова!", gameMarkup);
         }
 
         private void BuildShuffleStack()

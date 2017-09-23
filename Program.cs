@@ -38,15 +38,15 @@ namespace pj2
                 .Build();
         }
 
-        public static void HandleMessage(Message m)
+        public static void HandleUpdate(Update u)
         {
-            var id = m.Chat.Id;
+            var id = u.Message.Chat.Id;
             if (!rooms.ContainsKey(id))
             {
                 GameRoom room = new GameRoom(id, bot);
                 rooms.Add(id, room);
             }
-            rooms[id].HandleMessage(m);
+            rooms[id].HandleMessage(u.Message);
         }
     }
 }
