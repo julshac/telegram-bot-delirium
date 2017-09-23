@@ -22,12 +22,12 @@ namespace pj2.Controllers
         }
 
         
-        [HttpPost("[controller]/p")] //поменять
+        [HttpPost]
         public IActionResult Post([FromBody] Telegram.Bot.Types.Update u)
         {
             list.Add(u);
-            sList += $"{DateTime.UtcNow.AddHours(3).ToString()}: Chat ID: {u.Message.Chat.Id}, user name: {u.Message.Chat.FirstName},"
-                + $"update type: {u.Type}, text: {u.Message.Text}";
+            sList = $"{DateTime.UtcNow.AddHours(3).ToString()}: Chat ID: {u.Message.Chat.Id}, user name: {u.Message.Chat.FirstName},"
+                + $"update type: {u.Type}, text: {u.Message.Text}\n" + sList;
 
             Program.HandleUpdate(u);
 

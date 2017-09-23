@@ -34,15 +34,22 @@ namespace pj2
 
             app.UseStaticFiles();
 
+            string token = Configuration["TELEBOT_TOKEN"];
+
             app.UseMvc(routes =>
             {
                 routes.MapRoute(
                     name: "default",
                     template: "{controller=api}/{action=Index}/{id?}");
+
+                routes.MapRoute(
+                    name: "post",
+                    template: "{contoller=api}/" + token + "{action=Post}"
+                );
             });
 
-            Program.bot = new Telegram.Bot.TelegramBotClient(Configuration["TELEBOT_TOKEN"]);
-            Program.bot.SetWebhookAsync("https://deliriumbot.azurewebsites.net/api/p");
+            Program.Token = token;
+            Program.WebhookAddress = Configuration["SITE"];
         }
     }
 }

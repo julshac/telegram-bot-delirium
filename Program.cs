@@ -14,8 +14,27 @@ namespace pj2
 {
     public class Program
     {
-        public static DateTime STARTTIME = DateTime.UtcNow;
-        public static TelegramBotClient bot;
+        public static DateTime STARTTIME = DateTime.UtcNow.AddHours(3);
+        
+        private static TelegramBotClient bot;
+
+        public static string WebhookAddress {
+            get {return WebhookAddress;}
+            set {
+                WebhookAddress = value;
+                if (bot != null)
+                    bot.SetWebhookAsync($"https://{value}/api/{Token}/");
+            }
+        }
+        public static string Token {
+            private get { return Token; }
+            set
+            {
+                if (bot == null){
+                    bot = new TelegramBotClient(value);
+                }
+            }
+        }
         
         private static Dictionary<long, GameRoom> rooms = new Dictionary<long, GameRoom>();
 
