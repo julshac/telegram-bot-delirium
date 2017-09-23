@@ -18,20 +18,24 @@ namespace pj2
         
         private static TelegramBotClient bot;
 
+        private static string webhookAddress;
         public static string WebhookAddress {
-            get {return WebhookAddress;}
+            get {return webhookAddress;}
             set {
-                WebhookAddress = value;
                 if (bot != null)
-                    bot.SetWebhookAsync($"https://{value}/api/{Token}/");
+                    webhookAddress = value;
+                    bot.SetWebhookAsync($"https://{webhookAddress}/api/p/{Token}/");
             }
         }
+
+        private static string token;
         public static string Token {
-            private get { return Token; }
+            private get { return token; }
             set
             {
                 if (bot == null){
-                    bot = new TelegramBotClient(value);
+                    token = value;
+                    bot = new TelegramBotClient(token);
                 }
             }
         }
@@ -43,19 +47,11 @@ namespace pj2
             BuildWebHost(args).Run();
         }
 
-        public static IWebHost BuildWebHost(string[] args) 
-        {
-            var confBuilder = new ConfigurationBuilder();
-            var conf = confBuilder
-                .AddEnvironmentVariables("APPSETTING_")
-                .Build();
-
-            return WebHost.CreateDefaultBuilder(args)
+        public static IWebHost BuildWebHost(string[] args) =>
+            WebHost.CreateDefaultBuilder(args)
                 .UseStartup<Startup>()
-                .UseConfiguration(conf)
                 .UseAzureAppServices()
                 .Build();
-        }
 
         public static void HandleUpdate(Update u)
         {

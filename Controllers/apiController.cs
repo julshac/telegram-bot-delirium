@@ -13,21 +13,22 @@ namespace pj2.Controllers
     {
         List<Update> list = new List<Update>(); //kinda DB //thread safeness?
 
-        static string sList = "Updates:\n";
+        static string header = "Updates:\n";
+        static string log;
 
         [HttpGet]
         public IActionResult Index()
         {
-            return Ok(sList);
+            return Ok(header + log);
         }
 
         
         [HttpPost]
-        public IActionResult Post([FromBody] Telegram.Bot.Types.Update u)
+        public IActionResult p([FromBody] Telegram.Bot.Types.Update u)
         {
             list.Add(u);
-            sList = $"{DateTime.UtcNow.AddHours(3).ToString()}: Chat ID: {u.Message.Chat.Id}, user name: {u.Message.Chat.FirstName},"
-                + $"update type: {u.Type}, text: {u.Message.Text}\n" + sList;
+            log = $"{DateTime.UtcNow.AddHours(3).ToString()}: Chat ID: {u.Message.Chat.Id}, user name: {u.Message.Chat.FirstName}, "
+                + $"update type: {u.Type}, text: {u.Message.Text}\n" + log;
 
             Program.HandleUpdate(u);
 

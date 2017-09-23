@@ -11,9 +11,22 @@ namespace pj2
 {
     public class Startup
     {
-        public Startup(IConfiguration configuration)
+        public Startup(IHostingEnvironment env)
         {
-            Configuration = configuration;
+            System.Console.WriteLine($"Current environment: {env.EnvironmentName}");
+
+            var builder = new ConfigurationBuilder();
+            
+            if (env.IsDevelopment())
+            {
+                builder
+                    .SetBasePath(Environment.CurrentDirectory)
+                    .AddJsonFile("local\\secrets.json");
+            }
+
+            builder.AddEnvironmentVariables("APPSETTINGS_");
+
+            Configuration = builder.Build();
         }
 
         public IConfiguration Configuration { get; }
@@ -35,16 +48,17 @@ namespace pj2
             app.UseStaticFiles();
 
             string token = Configuration["TELEBOT_TOKEN"];
-
+            
             app.UseMvc(routes =>
             {
                 routes.MapRoute(
-                    name: "default",
-                    template: "{controller=api}/{action=Index}/{id?}");
+                    name: "post",
+                    template: "{contoller=api}/{action=p}/" + token
+                );
 
                 routes.MapRoute(
-                    name: "post",
-                    template: "{contoller=api}/" + token + "{action=Post}"
+                    name: "default",
+                    template: "{controller=api}/{action=Index}/{id?}"
                 );
             });
 
