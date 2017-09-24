@@ -5,7 +5,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Telegram.Bot.Args;
-using Telegram.Bot.Types; 
+using Telegram.Bot.Types;
+using Telegram.Bot.Types.Enums;
 
 namespace pj2.Controllers
 {
@@ -27,8 +28,6 @@ namespace pj2.Controllers
         public IActionResult p([FromBody] Telegram.Bot.Types.Update u)
         {
             list.Add(u);
-            log = $"{DateTime.UtcNow.AddHours(3).ToString()}: Chat ID: {u.Message.Chat.Id}, user name: {u.Message.Chat.FirstName}, "
-                + $"update type: {u.Type}, text: {u.Message.Text}\n" + log;
 
             Program.HandleUpdate(u);
 

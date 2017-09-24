@@ -1,11 +1,14 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Telegram.Bot;
 using Telegram.Bot.Types;
+using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.InlineKeyboardButtons;
 using Telegram.Bot.Types.ReplyMarkups;
 
@@ -13,224 +16,445 @@ namespace pj2
 {
     class GameRoom
     {
-        private static Dictionary<int, Card> cards =
-            new Dictionary<int, Card>()
-            {
-                {0, new Card("Я", 4, "Этот бокал для тебя.") },
-                {1, new Card("Ты", 4, "Выбери, кто будет пить.") },
-                {2, new Card("Джентльмены", 2, "Все джентльмены за столом пьют.") },
-                {3, new Card("Леди", 2, "Все леди за столом пьют.") },
-                {4, new Card("Тост", 2, "Произносишь тост, все пьют.") },
-                {5, new Card("Передай налево", 3, "Игрок слева от тебя пьет.") },
-                {6, new Card("Передай направо", 3, "Игрок справа от тебя пьет.") },
-                {7, new Card("Вызов", 2, "Выбери игрока и выпей. Он должен выпить не меньше тебя.") },
-                {8, new Card("Все на пол", 1, "Все игроки должны коснуться пола. Последний пьет.") },
-                {9, new Card("Прозвище", 4, "Придумай прозвище игроку. Все должны звать его этим прозвищем до конца игры. Тот, кто обратился к нему иначе, пьет.") },
-                {10, new Card("Твои правила", 3, "Становишься Rulemaster'ом и придумываешь свои правила. Следующий Rulemaster может отменить правила предыдущего.") },
-                {11, new Card("Секретная служба", 2, "Все должны приложить ладонь к уху, изображая телохранителей. Последний становится президентом и пьет.") },
-                {12, new Card("Брудершафт", 2, "Выпей на брудершафт с игроком на выбор.") },
-                {13, new Card("Шах и мат", 3, "Выбери игрока, который будет пить с тобой каждый раз, когда ты ошибаешься.") },
-                {14, new Card("Повтори за мной", 1, "Просишь игрока повторить за тобой (скороговорку или сложнопроизносимое слово). Если у него не получилось - он пьет. Получилось - пьешь ты.") },
-                {15, new Card("Неудобные вопросы", 3, "Каждый игрок имеет право задать тебе любой вопрос. Если ты отказываешься на него отвечать - ты пьешь.") },
-                {16, new Card("Нос", 2, "Все игроки должны коснуться носа. Последний пьет.") },
-                {17, new Card("Категория", 2, "Вытянувший карту придумывает категорию (марки презервативов, музыкальные группы 90-х годов, модели Mercedes). Остальные игроки называют слова из этой категории. Кто не сможет - пьет.") },
-                {18, new Card("Я никогда не", 3, "Говоришь то, что ты \"Никогда не делал\" (но на самом деле делал или очень хотел бы). Тот, кто делал это, пьет.") },
-                {19, new Card("Вопросы", 2, "Игрок задает вопрос игроку слева. Отвечать на него нельзя, нужно быстро задать вопрос следующему соседу. Сбился? Ошибся? Запнулся? Выпей.") },
-                {20, new Card("Цвет", 2, "Игрок называет цвет, следующий повторяет его и добавляет свой, и так далее. Кто сбился, тот пьет.") },
-                {21, new Card("Кубок", 4, "Первые три игрока, вытянувшие эту карту, сливают содержимое своих бокалов в кубок. Четвертый это дело выпивает.") },
-                {22, new Card("Саймон говорит", 1, "Тот, кто вытянул эту карту делает какой-нибудь жест, следующий делает то же самое и добавляет свой. Так продолжается, пока кто-нибудь не собьется.") },
-                {23, new Card("Товарищ заебал",1,"Игрок, вытянувший эту карту, становится товарищем. Другим игрокам нельзя отвечать на его вопросы.") }
-            };
-
-        private static string[] buttonTitles = new string[]
-            {
-                "Хоп, хэй, лалалэй",
-                "Наливай!",
-                "Гриша одобряэ",
-                "Жопа - не лень",
-                "Люк, я твой стакан!",
-                "Ты сможешь!",
-                "Держись!",
-                "Не жми!",
-                "Сперва подлей соседу",
-                "За Родину!",
-                "Never gonna give you up",
-                "42",
-                "Матрос - это такая вошь",
-                "Алкоголь на тебя не действует!"
-            };
-
         private const string str_newgame = "Новая игра";
-        private const string str_wat = "Что делает карта?";
+        private const string str_tip = "Пояснить";
         private const string str_rules = "Правила";
-        private const string str_ban = "Бан карты";
+        private const string str_deck = "Колода";
+        private const string str_custom_cards = "Свои карты";
+        private const string str_back = "Назад";
+        private const string str_ingame_menu = "Меню";
+        private const string str_main_menu = "Главное меню";
+
+        private ObservableCollection<Card> cards = new ObservableCollection<Card>()
+        {
+            new Card("Я", 4, "Этот бокал для тебя."),
+            new Card("Ты", 4, "Выбери, кто будет пить."),
+            new Card("Джентльмены", 2, "Все джентльмены за столом пьют."),
+            new Card("Леди", 2, "Все леди за столом пьют."),
+            new Card("Тост", 2, "Произносишь тост, все пьют."),
+            new Card("Передай налево", 3, "Игрок слева от тебя пьет."),
+            new Card("Передай направо", 3, "Игрок справа от тебя пьет."),
+            new Card("Вызов", 2, "Выбери игрока и выпей. Он должен выпить не меньше тебя."),
+            new Card("Все на пол", 1, "Все игроки должны коснуться пола. Последний пьет."),
+            new Card("Прозвище", 4, "Придумай прозвище игроку. Все должны звать его этим прозвищем до конца игры. Тот, кто обратился к нему иначе, пьет."),
+            new Card("Твои правила", 3, "Становишься Rulemaster'ом и придумываешь свои правила. Следующий Rulemaster может отменить правила предыдущего."),
+            new Card("Секретная служба", 2, "Все должны приложить ладонь к уху, изображая телохранителей. Последний становится президентом и пьет."),
+            new Card("Брудершафт", 2, "Выпей на брудершафт с игроком на выбор."),
+            new Card("Шах и мат", 3, "Выбери игрока, который будет пить с тобой каждый раз, когда ты ошибаешься."),
+            new Card("Повтори за мной", 1, "Просишь игрока повторить за тобой (скороговорку или сложнопроизносимое слово). Если у него не получилось - он пьет. Получилось - пьешь ты."),
+            new Card("Неудобные вопросы", 3, "Каждый игрок имеет право задать тебе любой вопрос. Если ты отказываешься на него отвечать - ты пьешь."),
+            new Card("Нос", 2, "Все игроки должны коснуться носа. Последний пьет."),
+            new Card("Категория", 2, "Вытянувший карту придумывает категорию (марки презервативов, музыкальные группы 90-х годов, модели Mercedes). Остальные игроки называют слова из этой категории. Кто не сможет - пьет."),
+            new Card("Я никогда не", 3, "Говоришь то, что ты \"Никогда не делал\" (но на самом деле делал или очень хотел бы). Тот, кто делал это, пьет."),
+            new Card("Вопросы", 2, "Игрок задает вопрос игроку слева. Отвечать на него нельзя, нужно быстро задать вопрос следующему соседу. Сбился? Ошибся? Запнулся? Выпей."),
+            new Card("Цвет", 2, "Игрок называет цвет, следующий повторяет его и добавляет свой, и так далее. Кто сбился, тот пьет."),
+            new Card("Кубок", 4, "Первые три игрока, вытянувшие эту карту, сливают содержимое своих бокалов в кубок. Четвертый это дело выпивает."),
+            new Card("Саймон говорит", 1, "Тот, кто вытянул эту карту делает какой-нибудь жест, следующий делает то же самое и добавляет свой. Так продолжается, пока кто-нибудь не собьется."),
+            new Card("Товарищ заебал",1,"Игрок, вытянувший эту карту, становится товарищем. Другим игрокам нельзя отвечать на его вопросы.")
+        };
+
+        private static readonly string[] buttonTitles = new string[]
+        {
+            "Хоп, хэй, лалалэй",
+            "Наливай!",
+            "Гриша одобряэ",
+            "Жопа - не лень",
+            "Люк, я твой стакан!",
+            "Ты сможешь!",
+            "Держись!",
+            "Не жми!",
+            "Сперва подлей соседу",
+            "За Родину!",
+            "Never gonna give you up",
+            "42",
+            "Матрос - это такая вошь",
+            "Алкоголь на тебя не действует!",
+            "GetRandomButtonTitle()"
+        };
+
+        private static readonly string[] confirmations = new string[]
+        {
+            "Ок.",
+            "Выполняю.",
+            "Как скажешь.",
+            "Да.",
+            "Хорошо."
+        };
+
+        private Dictionary<string, Action> _actions;
 
         private Random rnd = new Random(DateTime.Now.Millisecond);
 
-        private ReplyKeyboardMarkup menuMarkup;
-        private ReplyKeyboardMarkup gameMarkup;
+        private ReplyKeyboardMarkup kbMainMenu;
+        private ReplyKeyboardMarkup kbGame;
+        private ReplyKeyboardMarkup kbGameMenu;
+        private InlineKeyboardMarkup kbCardPage;
+        private TelegramBotClient bot;
+        private long chatId;
 
-        private TelegramBotClient Client { get; }
-        private long ChatID { get; }
-
-        private List<int> deck;
-        private int lastCardId;
+        private Stack<int> deck;
         private int cupCount;
-        private int cupId;
-        private bool started;
+        private bool started = false;
+        private int lastPlayedId = -1;
+
+        private Stack<IReplyMarkup> kbs = new Stack<IReplyMarkup>();
+
+        private int pageSize = 5;
+        private int maxPage = 4;
 
         public GameRoom(long chatid, TelegramBotClient bot)
         {
-            Client = bot;
-            ChatID = chatid;
+            this.bot = bot;
+            chatId = chatid;
 
-            started = false;
-
-            cupId = cards.Where(x => x.Value.Name == "Кубок").ElementAt(0).Key;
+            cards.CollectionChanged += cardsCollectionChangedHandler;
 
             InitKeyboardMarkups();
+            InitActions();
 
-            SendMsg("Привет! Ищешь приключений? Сейчас они начнутся! Для начала новой игры в любой момент введи \"/newgame\".", menuMarkup);
+            kbs.Push(kbMainMenu);
+            SendMsg("Добро пожаловать в игру делириум!");
+        }
+
+        private void cardsCollectionChangedHandler(object sender, NotifyCollectionChangedEventArgs e)
+        {
+            if (e.Action == NotifyCollectionChangedAction.Add
+             || e.Action == NotifyCollectionChangedAction.Remove)
+            {
+                maxPage = (int)Math.Ceiling(cards.Count() / (double)pageSize);
+            }
+        }
+
+        private void InitActions()
+        {
+            _actions = new Dictionary<string, Action>()
+            {
+                {str_newgame, NewGame},
+                {str_back, Back},
+                {str_main_menu, MainMenu},
+                {str_ingame_menu, InGameMenu},
+                {str_rules, Rules},
+                {"default", NextCard},
+                {str_tip, Tip},
+                {str_deck, Deck}
+            };
+        }
+
+        private int callbackType = 0;
+        private int callbackDeckCurrentPage = 0;
+        private int callbackMessageId = 0;
+
+        private void Deck()
+        {
+            kbs.Push(CreatePage());
+            var task = bot.SendTextMessageAsync(chatId, "Ваша колода:", replyMarkup: kbs.Peek());
+
+            callbackMessageId = task.Result.MessageId;
+
+            callbackType = 1;
+        }
+
+        private InlineKeyboardMarkup CreatePage()
+        {
+            bool last = pageSize * (callbackDeckCurrentPage + 1) >= cards.Count();
+            bool first = callbackDeckCurrentPage == 0;
+
+            var cnt = pageSize;
+            if (last) cnt = cards.Count() - pageSize * callbackDeckCurrentPage;
+
+            var tmp = new InlineKeyboardButton[cnt + 1][];
+
+            for (int i = 0; i < cnt; i++)
+            {
+                var k = callbackDeckCurrentPage * pageSize + i;
+                var btn = InlineKeyboardButton.WithCallbackData($"{cards[k].Name}: {cards[k].Count}", k.ToString());
+                tmp[i] = new InlineKeyboardButton[] { btn };
+            }
+
+            if (first) tmp[cnt] = new InlineKeyboardButton[] { "Ок", "->" };
+            if (last) tmp[cnt] = new InlineKeyboardButton[] { "Ок", "<-" };
+            if (!first && !last) tmp[cnt] = new InlineKeyboardButton[] { "Ок", "<-", "->" };
+            if (first && last) tmp[cnt] = new InlineKeyboardButton[] { "Ок" };
+
+            return new InlineKeyboardMarkup(tmp);
+        }
+
+        private void Tip()
+        {
+            if (lastPlayedId == -1) { SendMsg("Всё и так понятно."); return; }
+            if (lastPlayedId == -2) { SendMsg("Меню -> Главное меню -> Новая игра."); return; }
+            SendMsg(cards[lastPlayedId].Description);
+        }
+
+        private void NextCard()
+        {
+            if (!started) { SendMsg("Игра ещё не начата!"); return; }
+            if (deck.Count() == 0) { lastPlayedId = -2; SendMsg("Карты в колоде закончились!"); return; }
+
+            var id = deck.Pop();
+            lastPlayedId = id;
+
+            var name = cards[id].Name;
+
+            kbGame.Keyboard[0][0].Text = GetRandomButtonTitle();
+            SendMsg(cards[id].Name);
+
+            if (name == "Кубок")
+            {
+                if (++cupCount == cards[id].Count) SendMsg($"Это {cupCount}-й! Пей до дна!");
+                else SendMsg($"Это {cupCount}-й. Только тому, кто вытянет {cards[id].Count}-й, достанется чаша!");
+            }
+        }
+
+        private void InGameMenu()
+        {
+            kbs.Push(kbGameMenu);
+            SendMsg(Confirmation());
+        }
+
+        private void MainMenu()
+        {
+            started = false;
+            lastPlayedId = -1;
+
+            kbs.Clear();
+            kbs.Push(kbMainMenu);
+            SendMsg(Confirmation());
+        }
+
+        private void Back()
+        {
+            kbs.Pop();
+            if (kbs.Count() == 0) kbs.Push(kbMainMenu);
+            SendMsg(Confirmation());
         }
 
         private void InitKeyboardMarkups()
         {
-            KeyboardButton[][] notInGame = new KeyboardButton[2][];
-            for (int i = 0; i < 2; i++)
-            {
-                notInGame[i] = new KeyboardButton[1];
-            }
-            notInGame[0][0] = new KeyboardButton(str_newgame);
-            notInGame[1][0] = new KeyboardButton(str_rules);
+            KeyboardButton[][] tmp = new KeyboardButton[3][];
+            tmp[0] = new KeyboardButton[] { str_newgame };
+            tmp[1] = new KeyboardButton[] { str_deck, str_custom_cards };
+            tmp[2] = new KeyboardButton[] { str_rules };
 
-            menuMarkup = new ReplyKeyboardMarkup(notInGame, true);
+            kbMainMenu = new ReplyKeyboardMarkup(tmp, true);
 
-            //- - - - - - - - -//
 
-            KeyboardButton[][] inGame = new KeyboardButton[2][];
-            for (int i = 0; i < 2; i++)
-            {
-                inGame[i] = new KeyboardButton[1];
-            }
-            inGame[0][0] = new KeyboardButton(getRandomButtonTitle());
-            inGame[1][0] = new KeyboardButton(str_wat);
+            tmp = new KeyboardButton[2][];
+            tmp[0] = new KeyboardButton[] { "GetRandomButtonTitle()" };
+            tmp[1] = new KeyboardButton[] { str_tip, str_ingame_menu };
 
-            gameMarkup = new ReplyKeyboardMarkup(inGame, true);
+            kbGame = new ReplyKeyboardMarkup(tmp, true);
 
-            InlineKeyboardButton[][] ikb = new InlineKeyboardButton[8][];
 
-            for (int i = 0; i < 6; i++)
-            {
-                ikb[i] = new InlineKeyboardButton[3] {
-                    "<looooongname>:" + i,
-                    "-",
-                    "+"
-                };
-            }
-            ikb[6] = new InlineKeyboardButton[2] { "\u2B05", "arrow_right" };
-            ikb[7] = new InlineKeyboardButton[2] { "Отмена", "Сохранить" };
+            tmp = new KeyboardButton[3][];
+            tmp[0] = new KeyboardButton[] { str_main_menu };
+            tmp[1] = new KeyboardButton[] { str_rules };
+            tmp[2] = new KeyboardButton[] { str_back };
 
-            test = new InlineKeyboardMarkup(ikb);
+            kbGameMenu = new ReplyKeyboardMarkup(tmp, true);
+
+            
+            var tmp2 = new InlineKeyboardButton[3][];
+
+            tmp2[0] = new InlineKeyboardButton[]{"-","+"};
+            tmp2[1] = new InlineKeyboardButton[]{"Описание"};
+            tmp2[2] = new InlineKeyboardButton[]{"Назад"};
+
+            kbCardPage = new InlineKeyboardMarkup(tmp2);
         }
-
-        private InlineKeyboardMarkup test;
 
         private void NewGame()
         {
-            lastCardId = -1;
+            lastPlayedId = -1;
             cupCount = 0;
-            BuildShuffleStack();
-            gameMarkup.Keyboard[0][0].Text = getRandomButtonTitle();
-            SendMsg("Новая колода готова!", gameMarkup);
+            CreateDeck();
+
+            started = true;
+
+            kbGame.Keyboard[0][0].Text = GetRandomButtonTitle();
+            kbs.Push(kbGame);
+            SendMsg("Новая колода готова!");
         }
 
-        private void BuildShuffleStack()
+        private void CreateDeck()
         {
-            deck = new List<int>();
-            foreach (var card in cards)
+            var tmp = new List<int>();
+
+            for (int i = 0; i < cards.Count(); i++)
             {
-                for (int i = 0; i < card.Value.DefaultCount; i++)
+                for (int j = 0; j < cards[i].Count; j++)
                 {
-                    deck.Add(card.Key);
+                    tmp.Add(i);
                 }
             }
 
             int buf, rndPlace;
-            
 
-            for (int i = 0; i < deck.Count; i++)
+            for (int i = 0; i < tmp.Count; i++)
             {
-                buf = deck[i];
-                rndPlace = rnd.Next(deck.Count);
-                deck[i] = deck[rndPlace];
-                deck[rndPlace] = buf;
+                buf = tmp[i];
+                rndPlace = rnd.Next(tmp.Count);
+                tmp[i] = tmp[rndPlace];
+                tmp[rndPlace] = buf;
             }
+
+            deck = new Stack<int>(tmp);
         }
 
-        public void HandleMessage(Message m)//Telegram.Bot.Args.MessageEventArgs args)
+
+        private void Rules()
         {
-            //if (args.Message.Type == Telegram.Bot.Types.Enums.MessageType.TextMessage)
+            SendMsg("yo, tipo pravila igry");
+        }
+
+        private bool hasSentSticker = false;
+        public void HandleMessage(Message m)
+        {
+            if (callbackType > 0)
             {
-                switch (m.Text)
-                {
-                    case "/start": break;
-                    case str_ban: break; //TODO: DO.
-                    case "/newgame": 
-                    case str_newgame: NewGame(); started = true; break;
-                    case str_wat:
-                        {
-                            if (lastCardId == -1) SendMsg("Ни одной карты не было разыграно.", gameMarkup);
-                            else SendMsg(cards.ElementAt(lastCardId).Value.Description, gameMarkup);
-                            break;
-                        }
-                    case str_rules:
-                        {
-                            SendMsg("Каждый игрок тянет по одной карте и выполняет действия согласно описанию.", menuMarkup);
-                            break;
-                        }
-                    case "/startup":
+                bot.DeleteMessageAsync(chatId, m.MessageId);
+                return;
+            }
+            switch (m.Type)
+            {
+                case MessageType.TextMessage:
                     {
-                        SendMsg(Program.STARTTIME.ToString(), null);
+                        if (_actions.ContainsKey(m.Text)) _actions[m.Text]();
+                        else _actions["default"]();
                         break;
                     }
-                    default:
+                case MessageType.StickerMessage:
+                    {
+                        if (!hasSentSticker)
                         {
-                            if (started)
-                            {
-                                int id = deck.First();
-                                deck.RemoveAt(0);
-
-                                lastCardId = id;
-
-                                string cupstr = "";
-                                if (id == cupId)
-                                {
-                                    cupstr = " №" + (++cupCount == 4 ? "4! Время его выпить!" : cupCount.ToString());
-                                }
-
-                                gameMarkup.Keyboard[0][0].Text = getRandomButtonTitle();
-                                SendMsg(cards.ElementAt(id).Value.Name + cupstr, gameMarkup);
-                                
-                                if (deck.Count == 0)
-                                {
-                                    Thread.Sleep(400);
-                                    SendMsg("Карты в колоде закончились! Для начала новой игры введи \"/newgame\".", menuMarkup);
-                                    started = false;
-                                }
-                            }
-                            break;
+                            hasSentSticker = true;
+                            bot.SendTextMessageAsync(chatId, "*winky face*");
                         }
-                }
+                        break;
+                    }
+                default:
+                    break;
             }
         }
 
-        private void SendMsg(string msg, IReplyMarkup markup)
+        public void HandleCallbackQuery(CallbackQuery q)
         {
-            Client.SendTextMessageAsync(ChatID, msg, replyMarkup: markup);
+            switch (callbackType)
+            {
+                case 1:
+                    {
+                        if (q.Message.MessageId == callbackMessageId) DeckViewer(q);
+                        break;
+                    }
+            }
+            bot.AnswerCallbackQueryAsync(q.Id);
+        }
+
+        AutoResetEvent resetEvent = new AutoResetEvent(true);
+        int callbackCardId;
+
+        private void DeckViewer(CallbackQuery q)
+        {
+            resetEvent.WaitOne(-1);
+            switch (q.Data)
+            {
+                case "->":
+                    {
+                        if (callbackDeckCurrentPage < maxPage)
+                        {
+                            callbackDeckCurrentPage++;
+
+                            kbs.Push(CreatePage());
+                            bot.EditMessageReplyMarkupAsync(chatId, callbackMessageId, kbs.Peek());
+                        }
+
+                        break;
+                    }
+                case "<-":
+                    {
+                        if (callbackDeckCurrentPage > 0)
+                        {
+                            callbackDeckCurrentPage--;
+
+                            kbs.Pop();
+                            bot.EditMessageReplyMarkupAsync(chatId, callbackMessageId, kbs.Peek());
+                        }
+                        break;
+                    }
+                case "Ок":
+                    {
+                        bot.DeleteMessageAsync(chatId, callbackMessageId);
+                        
+                        callbackType = 0;
+                        callbackMessageId = 0;
+
+
+                        kbs.Clear();
+                        kbs.Push(kbMainMenu);
+                        SendMsg(Confirmation());
+
+                        break;
+                    }
+                case "+":
+                    {
+
+                        break;
+                    }
+                case "-":
+                    {
+
+                        break;
+                    }
+                case "Описание":
+                    {
+                        bot.AnswerCallbackQueryAsync(
+                            q.Id,
+                            cards[callbackCardId].Description,
+                            true
+                        );
+                        
+                        break;
+                    }
+                case "Назад":
+                    {
+                        kbs.Pop();
+                        kbs.Pop();
+                        kbs.Push(CreatePage());
+
+                        bot.EditMessageTextAsync(
+                            chatId,
+                            callbackMessageId,
+                            "Ваша колода:",
+                            replyMarkup: kbs.Peek()
+                        );
+                        break;
+                    }
+                default:
+                    {
+                        callbackCardId = Int32.Parse(q.Data);
+
+                        kbs.Push(kbCardPage);
+
+                        bot.EditMessageTextAsync(
+                            chatId, 
+                            callbackMessageId,
+                            $"{cards[callbackCardId].Name}: {cards[callbackCardId].Count}",
+                            replyMarkup: kbs.Peek()
+                        );   
+
+                        break;
+                    }
+            }
+            resetEvent.Set();
+        }
+
+        private void SendMsg(string msg)
+        {
+            bot.SendTextMessageAsync(chatId, msg, replyMarkup: kbs.Peek());
         }
 
         int lastval = -1;
-        private string getRandomButtonTitle()
+        private string GetRandomButtonTitle()
         {
             int newval;
             if (lastval == -1)
@@ -247,6 +471,11 @@ namespace pj2
             }
             lastval = newval;
             return buttonTitles[newval];
+        }
+
+        private string Confirmation()
+        {
+            return confirmations[rnd.Next(0, confirmations.Count())];
         }
     }
 }
