@@ -11,6 +11,7 @@ using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.InlineKeyboardButtons;
 using Telegram.Bot.Types.ReplyMarkups;
+using Medallion;
 
 namespace pj2
 {
@@ -24,6 +25,7 @@ namespace pj2
         private const string str_back = "Назад";
         private const string str_ingame_menu = "Меню";
         private const string str_main_menu = "Главное меню";
+        private const string str_add_custom = "Добавить";
 
         private ObservableCollection<Card> cards = new ObservableCollection<Card>()
         {
@@ -53,7 +55,7 @@ namespace pj2
             new Card("Товарищ заебал",1,"Игрок, вытянувший эту карту, становится товарищем. Другим игрокам нельзя отвечать на его вопросы.")
         };
 
-        private static readonly string[] buttonTitles = new string[]
+        private static readonly string[] buttonTitles = new[]
         {
             "Хоп, хэй, лалалэй",
             "Наливай!",
@@ -62,17 +64,17 @@ namespace pj2
             "Люк, я твой стакан!",
             "Ты сможешь!",
             "Держись!",
-            "Не жми!",
+            "Пей до дна!",
             "Сперва подлей соседу",
             "За Родину!",
             "Never gonna give you up",
-            "42",
+            "За маму и двор",
             "Матрос - это такая вошь",
             "Алкоголь на тебя не действует!",
-            "GetRandomButtonTitle()"
+            "RandomText()"
         };
 
-        private static readonly string[] confirmations = new string[]
+        private static readonly string[] confirmations = new[]
         {
             "Ок.",
             "Выполняю.",
@@ -81,13 +83,16 @@ namespace pj2
             "Хорошо."
         };
 
-        private Dictionary<string, Action> _actions;
+        private Dictionary<string, Action<Message>> messageActions;
+        private Dictionary<string, Action<CallbackQuery>> callbackActions;
 
         private Random rnd = new Random(DateTime.Now.Millisecond);
 
         private ReplyKeyboardMarkup kbMainMenu;
         private ReplyKeyboardMarkup kbGame;
         private ReplyKeyboardMarkup kbGameMenu;
+        private ReplyKeyboardMarkup kbCustomCards;
+        private ReplyKeyboardMarkup kbCancel;
         private InlineKeyboardMarkup kbCardPage;
         private TelegramBotClient bot;
         private long chatId;
@@ -95,12 +100,18 @@ namespace pj2
         private Stack<int> deck;
         private int cupCount;
         private bool started = false;
-        private int lastPlayedId = -1;
+        private int lastPlayedCardInd = -1;
 
         private Stack<IReplyMarkup> kbs = new Stack<IReplyMarkup>();
 
         private int pageSize = 5;
         private int maxPage = 4;
+
+        private int callbackType = 0;
+        private int callbackDeckCurrentPage = 0;
+        private int callbackMessageId = 0;
+
+        private AutoResetEvent resetEvent = new AutoResetEvent(true);
 
         public GameRoom(long chatid, TelegramBotClient bot)
         {
@@ -110,49 +121,79 @@ namespace pj2
             cards.CollectionChanged += cardsCollectionChangedHandler;
 
             InitKeyboardMarkups();
-            InitActions();
+            InitMessageActions();
 
             kbs.Push(kbMainMenu);
             SendMsg("Добро пожаловать в игру делириум!");
         }
 
-        private void cardsCollectionChangedHandler(object sender, NotifyCollectionChangedEventArgs e)
+        public void HandleMessage(Message m)
         {
-            if (e.Action == NotifyCollectionChangedAction.Add
-             || e.Action == NotifyCollectionChangedAction.Remove)
+            if (resetEvent.WaitOne(0))
             {
-                maxPage = (int)Math.Ceiling(cards.Count() / (double)pageSize);
+                if (m.Type == MessageType.TextMessage)
+                    if (ValidateAction(m.Text))
+                        if (messageActions.ContainsKey(m.Text)) messageActions[m.Text](m);
+                        else messageActions["default"](m);
+                    else if (waitingForUserInput)
+                        CardAdder(m);
+
+                resetEvent.Set();
             }
         }
 
-        private void InitActions()
+        private int cardAddingStage;
+        private bool waitingForUserInput;
+
+        private string tmpName;
+
+        private void CardAdder(Message m)
         {
-            _actions = new Dictionary<string, Action>()
+            if (m.Type != MessageType.TextMessage) return;
+            if (cardAddingStage == 1 && m.Text.Length > 20 || cardAddingStage == 2 && m.Text.Length > 140) return;
+
+            if (m.Text == str_back)
             {
-                {str_newgame, NewGame},
-                {str_back, Back},
-                {str_main_menu, MainMenu},
-                {str_ingame_menu, InGameMenu},
-                {str_rules, Rules},
-                {"default", NextCard},
-                {str_tip, Tip},
-                {str_deck, Deck}
-            };
+                cardAddingStage = 0;
+                waitingForUserInput = false;
+                kbs.Pop();
+                SendMsg(GetRandomConfirmation());
+                return;
+            }
+
+            if (cardAddingStage == 1)
+            {
+                tmpName = m.Text;
+                cardAddingStage = 2;
+                SendMsg("А теперь описание карты. Не более 140 символов.");
+                return;
+            }
+
+            if (cardAddingStage == 2)
+            {
+                cards.Add(new Card(tmpName, 2, m.Text));
+                kbs.Pop();
+                SendMsg("Новая карта добавлена в количестве двух экземпляров!");
+                cardAddingStage = 0;
+                waitingForUserInput = false;
+            }
         }
 
-        private int callbackType = 0;
-        private int callbackDeckCurrentPage = 0;
-        private int callbackMessageId = 0;
-
-        private void Deck()
+        public void HandleCallbackQuery(CallbackQuery q)
         {
-            kbs.Push(CreatePage());
-            var task = bot.SendTextMessageAsync(chatId, "Ваша колода:", replyMarkup: kbs.Peek());
+            if (resetEvent.WaitOne(0))
+            {
+                if (q.Message.MessageId == callbackMessageId)
+                    if (ValidateAction(q.Data)) DeckViewer(q);
 
-            callbackMessageId = task.Result.MessageId;
+                bot.AnswerCallbackQueryAsync(q.Id);
 
-            callbackType = 1;
+                resetEvent.Set();
+            }
         }
+
+        private void cardsCollectionChangedHandler(object sender, NotifyCollectionChangedEventArgs e) =>
+            maxPage = (int)Math.Ceiling(cards.Count() / (double)pageSize);
 
         private InlineKeyboardMarkup CreatePage()
         {
@@ -179,56 +220,6 @@ namespace pj2
             return new InlineKeyboardMarkup(tmp);
         }
 
-        private void Tip()
-        {
-            if (lastPlayedId == -1) { SendMsg("Всё и так понятно."); return; }
-            if (lastPlayedId == -2) { SendMsg("Меню -> Главное меню -> Новая игра."); return; }
-            SendMsg(cards[lastPlayedId].Description);
-        }
-
-        private void NextCard()
-        {
-            if (!started) { SendMsg("Игра ещё не начата!"); return; }
-            if (deck.Count() == 0) { lastPlayedId = -2; SendMsg("Карты в колоде закончились!"); return; }
-
-            var id = deck.Pop();
-            lastPlayedId = id;
-
-            var name = cards[id].Name;
-
-            kbGame.Keyboard[0][0].Text = GetRandomButtonTitle();
-            SendMsg(cards[id].Name);
-
-            if (name == "Кубок")
-            {
-                if (++cupCount == cards[id].Count) SendMsg($"Это {cupCount}-й! Пей до дна!");
-                else SendMsg($"Это {cupCount}-й. Только тому, кто вытянет {cards[id].Count}-й, достанется чаша!");
-            }
-        }
-
-        private void InGameMenu()
-        {
-            kbs.Push(kbGameMenu);
-            SendMsg(Confirmation());
-        }
-
-        private void MainMenu()
-        {
-            started = false;
-            lastPlayedId = -1;
-
-            kbs.Clear();
-            kbs.Push(kbMainMenu);
-            SendMsg(Confirmation());
-        }
-
-        private void Back()
-        {
-            kbs.Pop();
-            if (kbs.Count() == 0) kbs.Push(kbMainMenu);
-            SendMsg(Confirmation());
-        }
-
         private void InitKeyboardMarkups()
         {
             KeyboardButton[][] tmp = new KeyboardButton[3][];
@@ -253,109 +244,186 @@ namespace pj2
 
             kbGameMenu = new ReplyKeyboardMarkup(tmp, true);
 
-            
+
+            tmp = new KeyboardButton[2][];
+            tmp[0] = new KeyboardButton[] { str_add_custom };
+            tmp[1] = new KeyboardButton[] { str_back };
+
+            kbCustomCards = new ReplyKeyboardMarkup(tmp, true);
+
+
+            kbCancel = new ReplyKeyboardMarkup(new KeyboardButton[] {str_back}, true);
+
+
             var tmp2 = new InlineKeyboardButton[3][];
 
-            tmp2[0] = new InlineKeyboardButton[]{"-","+"};
-            tmp2[1] = new InlineKeyboardButton[]{"Описание"};
-            tmp2[2] = new InlineKeyboardButton[]{"Назад"};
+            tmp2[0] = new InlineKeyboardButton[] { "-", "+" };
+            tmp2[1] = new InlineKeyboardButton[] { "Описание" };
+            tmp2[2] = new InlineKeyboardButton[] { str_back };
 
             kbCardPage = new InlineKeyboardMarkup(tmp2);
         }
 
-        private void NewGame()
+        #region message actions
+        private void InitMessageActions()
         {
-            lastPlayedId = -1;
+            messageActions = new Dictionary<string, Action<Message>>()
+            {
+                {str_newgame, NewGame},
+                {str_main_menu, MainMenu},
+                {str_ingame_menu, InGameMenu},
+                {str_rules, Rules},
+                {"default", NextCard},
+                {str_tip, Tip},
+                {str_deck, Deck},
+                {str_custom_cards, CustomCards},
+                {str_add_custom, AddCustomCard},
+                {str_back, Back}
+            };
+        }
+
+        private void NewGame(Message m)
+        {
             cupCount = 0;
             CreateDeck();
 
             started = true;
 
-            kbGame.Keyboard[0][0].Text = GetRandomButtonTitle();
+            SetRandomButtonText();
+            kbs.Clear();
             kbs.Push(kbGame);
             SendMsg("Новая колода готова!");
         }
+
+        private void MainMenu(Message m)
+        {
+            started = false;
+
+            kbs.Clear();
+            kbs.Push(kbMainMenu);
+            SendMsg(GetRandomConfirmation());
+        }
+
+        private void InGameMenu(Message m)
+        {
+            kbs.Push(kbGameMenu);
+            SendMsg(GetRandomConfirmation());
+        }
+
+        private void Rules(Message m) => SendMsg("yo, tipo pravila igry");
+
+        private void NextCard(Message m)
+        {
+            if (!started) return;
+            if (deck.Count() == 0) { SendMsg("Карты в колоде закончились!"); return; }
+
+            lastPlayedCardInd = deck.Pop();
+
+            var name = cards[lastPlayedCardInd].Name;
+
+            SetRandomButtonText();
+            SendMsg(cards[lastPlayedCardInd].Name);
+
+            if (name == "Кубок")
+            {
+                if (++cupCount == cards[lastPlayedCardInd].Count) SendMsg($"Это {cupCount}-й! Пей до дна!");
+                else SendMsg($"Это {cupCount}-й. Только тому, кто вытянет {cards[lastPlayedCardInd].Count}-й, достанется чаша!");
+            }
+        }
+
+        private void Tip(Message m)
+        {
+            try
+            {
+                if (m.ReplyToMessage == null) SendMsg(cards[lastPlayedCardInd].Description);
+                else SendMsg(cards.Single(card => card.Name == m.ReplyToMessage.Text).Description);
+            }
+            catch { }
+        }
+
+        private void Deck(Message m)
+        {
+            kbs.Push(CreatePage());
+            var task = SendMsg("Ваша колода:");
+
+            callbackMessageId = task.Result.MessageId;
+
+            callbackType = 1;
+        }
+
+        private void CustomCards(Message m)
+        {
+            kbs.Push(kbCustomCards);
+            SendMsg(GetRandomConfirmation());
+        }
+
+        private void AddCustomCard(Message m)
+        {
+            kbs.Push(kbCancel);
+            SendMsg("Пришли мне название карты, пожалуйста.");
+
+            waitingForUserInput = true;
+            cardAddingStage = 1;
+        }
+
+        private void Back(Message m)
+        {
+            kbs.Pop();
+            SendMsg(GetRandomConfirmation());
+        }
+        #endregion
 
         private void CreateDeck()
         {
             var tmp = new List<int>();
 
             for (int i = 0; i < cards.Count(); i++)
-            {
                 for (int j = 0; j < cards[i].Count; j++)
-                {
                     tmp.Add(i);
-                }
-            }
 
-            int buf, rndPlace;
-
-            for (int i = 0; i < tmp.Count; i++)
-            {
-                buf = tmp[i];
-                rndPlace = rnd.Next(tmp.Count);
-                tmp[i] = tmp[rndPlace];
-                tmp[rndPlace] = buf;
-            }
+            tmp.Shuffle(rnd);
 
             deck = new Stack<int>(tmp);
         }
 
-
-        private void Rules()
+        private bool ValidateAction(string a)
         {
-            SendMsg("yo, tipo pravila igry");
+            var r = false;
+            IReplyMarkup markup;
+
+            if (kbs.TryPeek(out markup))
+                if (markup is ReplyKeyboardMarkup)
+                {
+                    ReplyKeyboardMarkup keyboardMarkup = (ReplyKeyboardMarkup)markup;
+                    var keyboard = keyboardMarkup.Keyboard;
+
+                    foreach (var row in keyboard)
+                        foreach (var button in row)
+                            if (button.Text == a)
+                            { r = true; break; }
+                }
+                else if (markup is InlineKeyboardMarkup)
+                {
+                    InlineKeyboardMarkup keyboardMarkup = (InlineKeyboardMarkup)markup;
+
+                    var keyboard = keyboardMarkup.InlineKeyboard;
+
+                    foreach (var row in keyboard)
+                        foreach (var button in row)
+                            if (button.Text == a)
+                            { r = true; break; }
+
+                    int x = -1;
+                    if (int.TryParse(a, out x) && x >= 0 && x < cards.Count()) r = true;
+                }
+
+            return r;
         }
 
-        private bool hasSentSticker = false;
-        public void HandleMessage(Message m)
-        {
-            if (callbackType > 0)
-            {
-                bot.DeleteMessageAsync(chatId, m.MessageId);
-                return;
-            }
-            switch (m.Type)
-            {
-                case MessageType.TextMessage:
-                    {
-                        if (_actions.ContainsKey(m.Text)) _actions[m.Text]();
-                        else _actions["default"]();
-                        break;
-                    }
-                case MessageType.StickerMessage:
-                    {
-                        if (!hasSentSticker)
-                        {
-                            hasSentSticker = true;
-                            bot.SendTextMessageAsync(chatId, "*winky face*");
-                        }
-                        break;
-                    }
-                default:
-                    break;
-            }
-        }
-
-        public void HandleCallbackQuery(CallbackQuery q)
-        {
-            switch (callbackType)
-            {
-                case 1:
-                    {
-                        if (q.Message.MessageId == callbackMessageId) DeckViewer(q);
-                        break;
-                    }
-            }
-            bot.AnswerCallbackQueryAsync(q.Id);
-        }
-
-        AutoResetEvent resetEvent = new AutoResetEvent(true);
-        int callbackCardId;
+        private int callbackCardId;
 
         private void DeckViewer(CallbackQuery q)
         {
-            resetEvent.WaitOne(-1);
             switch (q.Data)
             {
                 case "->":
@@ -384,25 +452,37 @@ namespace pj2
                 case "Ок":
                     {
                         bot.DeleteMessageAsync(chatId, callbackMessageId);
-                        
+
                         callbackType = 0;
                         callbackMessageId = 0;
 
 
                         kbs.Clear();
                         kbs.Push(kbMainMenu);
-                        SendMsg(Confirmation());
+                        SendMsg(GetRandomConfirmation());
 
                         break;
                     }
                 case "+":
                     {
-
+                        if (cards[callbackCardId].Count < 5)
+                        {
+                            bot.EditMessageTextAsync(chatId, callbackMessageId,
+                                $"{cards[callbackCardId].Name}: {++cards[callbackCardId].Count}",
+                                replyMarkup: kbs.Peek()
+                            );
+                        }
                         break;
                     }
                 case "-":
                     {
-
+                        if (cards[callbackCardId].Count > 0)
+                        {
+                            bot.EditMessageTextAsync(chatId, callbackMessageId,
+                                $"{cards[callbackCardId].Name}: {--cards[callbackCardId].Count}",
+                                replyMarkup: kbs.Peek()
+                            );
+                        }
                         break;
                     }
                 case "Описание":
@@ -412,7 +492,7 @@ namespace pj2
                             cards[callbackCardId].Description,
                             true
                         );
-                        
+
                         break;
                     }
                 case "Назад":
@@ -436,46 +516,21 @@ namespace pj2
                         kbs.Push(kbCardPage);
 
                         bot.EditMessageTextAsync(
-                            chatId, 
+                            chatId,
                             callbackMessageId,
                             $"{cards[callbackCardId].Name}: {cards[callbackCardId].Count}",
                             replyMarkup: kbs.Peek()
-                        );   
+                        );
 
                         break;
                     }
             }
-            resetEvent.Set();
         }
 
-        private void SendMsg(string msg)
-        {
-            bot.SendTextMessageAsync(chatId, msg, replyMarkup: kbs.Peek());
-        }
+        private Task<Message> SendMsg(string msg) => bot.SendTextMessageAsync(chatId, msg, replyMarkup: kbs.Peek());
 
-        int lastval = -1;
-        private string GetRandomButtonTitle()
-        {
-            int newval;
-            if (lastval == -1)
-            {
-                newval = rnd.Next(buttonTitles.Count());
-            }
-            else
-            {
-                while (true)
-                {
-                    newval = rnd.Next(buttonTitles.Count());
-                    if (newval != lastval) break;
-                }
-            }
-            lastval = newval;
-            return buttonTitles[newval];
-        }
+        private void SetRandomButtonText() => kbGame.Keyboard[0][0].Text = buttonTitles[rnd.Next(0, buttonTitles.Count())];
 
-        private string Confirmation()
-        {
-            return confirmations[rnd.Next(0, confirmations.Count())];
-        }
+        private string GetRandomConfirmation() => confirmations[rnd.Next(0, confirmations.Count())];
     }
 }

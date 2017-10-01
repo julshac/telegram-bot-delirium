@@ -8,9 +8,9 @@ namespace pj2
 {
     class Card
     {
-        public int Count { get; private set; }
-        public string Name { get; private set; }
-        public string Description { get; private set; }
+        public int Count { get; set; }
+        public string Name { get; set; }
+        public string Description { get; set; }
 
         public Card(string name, int count, string desc)
         {
