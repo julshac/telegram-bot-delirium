@@ -478,10 +478,12 @@ namespace pj2
                     {
                         if (cards[callbackCardId].Count > 0)
                         {
-                            bot.EditMessageTextAsync(chatId, callbackMessageId,
+                            var x = bot.EditMessageTextAsync(chatId, callbackMessageId,
                                 $"{cards[callbackCardId].Name}: {--cards[callbackCardId].Count}",
                                 replyMarkup: kbs.Peek()
                             );
+
+                            x.Wait();
                         }
                         break;
                     }

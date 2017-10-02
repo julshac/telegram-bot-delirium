@@ -29,6 +29,19 @@ namespace pj2.Controllers
         {
             list.Add(u);
 
+            switch(u.Type)
+            {
+                case UpdateType.MessageUpdate:
+                    log = $"{DateTime.UtcNow.AddHours(3)}, {u.Message.Type}. {u.Message.From.Id}, {u.Message.From.FirstName} : {u.Message.Text}\n" + log;
+                    break;
+                case UpdateType.CallbackQueryUpdate:
+                    log = $"{DateTime.UtcNow.AddHours(3)}, callback. {u.CallbackQuery.From.Id}, {u.CallbackQuery.From.FirstName} : {u.CallbackQuery.Data}\n" + log;
+                    break;
+                case UpdateType.All:
+                    log = $"{DateTime.UtcNow.AddHours(3)}, {u.Type}\n" + log;
+                    break;
+            }
+
             Program.HandleUpdate(u);
 
             return Ok();
