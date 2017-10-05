@@ -62,6 +62,11 @@ namespace pj2
 
             Program.Token = token;
             Program.WebhookAddress = Configuration["SITE"];
+
+            Controllers.apiController.EmailTo = Configuration["EmailTo"];
+            Controllers.apiController.EmailUser = Configuration["EmailUser"];
+            Controllers.apiController.EmailPass = Configuration["EmailPass"];
+
         }
     }
 }

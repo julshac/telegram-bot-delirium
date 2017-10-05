@@ -186,7 +186,7 @@ namespace pj2
                 if (q.Message.MessageId == callbackMessageId)
                     if (ValidateAction(q.Data)) DeckViewer(q);
 
-                bot.AnswerCallbackQueryAsync(q.Id);
+                //bot.AnswerCallbackQueryAsync(q.Id);
 
                 resetEvent.Set();
             }
@@ -455,6 +455,7 @@ namespace pj2
 
                         callbackType = 0;
                         callbackMessageId = 0;
+                        callbackDeckCurrentPage = 0;
 
 
                         kbs.Clear();
