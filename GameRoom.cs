@@ -70,8 +70,7 @@ namespace pj2
             "Never gonna give you up",
             "За маму и двор",
             "Матрос - это такая вошь",
-            "Алкоголь на тебя не действует!",
-            "RandomText()"
+            "Алкоголь на тебя не действует!"
         };
 
         private static readonly string[] confirmations = new[]
@@ -105,7 +104,7 @@ namespace pj2
         private Stack<IReplyMarkup> kbs = new Stack<IReplyMarkup>();
 
         private int pageSize = 5;
-        private int maxPage = 4;
+        private int maxPage = 10;
 
         private int callbackType = 0;
         private int callbackDeckCurrentPage = 0;
